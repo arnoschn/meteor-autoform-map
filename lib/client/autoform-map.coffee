@@ -38,22 +38,58 @@ Template.afMap.rendered = ->
   @data.options = _.extend {}, defaults, @data.atts
 
   @data.marker = undefined
+  @data.extractAddress = (place) ->
+    city = state = country = zip = street = route = housenumber = false
+    if not place.address:
+      for i,ad in place.address_components
+        if ad.types[0] == "locality"
+          city = ad.long_name
+        if ad.types[0] == "country"
+          country = ad.long_name
+        if ad.types[0] == "administrative_area_level_1"
+          state = ad.long_name
+        if ad.types[0] == "administrative_area_level_2"
+          state = ad.long_name
+        if ad.types[0] == "administrative_area_level_3"
+          state = ad.long_name
+        if ad.types[0] == "postal_code"
+          zip = ad.long_name
+        if ad.types[0] == "route"
+          route = ad.long_name
+        if ad.types[0] == "route"
+          route = ad.long_name
+        if ad.types[0] == "street_number"
+          housenumber = ad.long_name
+        if ad.types[0] =="street_address"
+          street = ad.long_name
+      if not street
+        street = "#{route} #{housenumber}"
+      {lat:place.geometry.location.lat(),lng:place.geometry.location.lng(),
+        name: place.name, place_id:place.place_id,international_phone_number:place.international_phone_number,
+        formatted_address:place.formatted_address,website:place.website,
+        address:{city:city,state:state,country:country,zip:zip,street:street}}
+    else
+      place
+
+
+
   @data.setMarker = (map, place, zoom=0) =>
-    @$('.js-lat').val(place.geometry.location.lat())
-    @$('.js-lng').val(place.geometry.location.lng())
-    @$('.js-country').val(place.geometry.location.lng())
-    @$('.js-state').val(place.geometry.location.lng())
-    @$('.js-street').val(place.geometry.location.lng())
-    @$('.js-city').val(place.geometry.location.lng())
-    @$('.js-zip').val(place.geometry.location.lng())
-    @$('.js-phone').val(place.international_phone_number)
-    @$('.js-placeid').val(place.place_id)
-    @$('.js-name').val(place.name)
-    @$('.js-address').val(place.formatted_address)
-    @$('.js-www').val(place.website)
+    data = @data.extractAddress(place)
+    @$('.js-lat').val(data.lat)
+    @$('.js-lng').val(data.lng)
+    @$('.js-country').val(data.address.country)
+    @$('.js-state').val(data.address.state)
+    @$('.js-street').val(data.address.street)
+    @$('.js-city').val(data.address.city)
+    @$('.js-zip').val(data.address.zip)
+    @$('.js-phone').val(data.international_phone_number)
+    @$('.js-placeid').val(data.place_id)
+    @$('.js-name').val(data.name)
+    @$('.js-address').val(data.formatted_address)
+    @$('.js-www').val(data.website)
     if @data.marker then @data.marker.setMap null
     @data.marker = new google.maps.Marker
-      position: place.geometry.location
+      position: new google.maps.LatLng data.lat, data.lng
       map: map
 
     if zoom > 0
@@ -74,9 +110,7 @@ Template.afMap.rendered = ->
     @data.map = map
 
     if @data.value
-      location = if typeof @data.value == 'string' then @data.value.split ',' else [@data.value.lat, @data.value.lng]
-      location = new google.maps.LatLng parseFloat(location[0]), parseFloat(location[1])
-      @data.setMarker @data.map, location, @data.options.zoom
+      @data.setMarker @data.map, @data.value, @data.options.zoom
       @data.map.setCenter location
     else
       @data.map.setCenter new google.maps.LatLng @data.options.defaultLat, @data.options.defaultLng
